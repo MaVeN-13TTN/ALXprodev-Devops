@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Simple Pokémon Report Generator
+# Creates CSV report and calculates averages using awk
+
+# Configuration
+DATA_DIR="pokemon_data"
+CSV_FILE="pokemon_report.csv"
+
+# Check if data directory exists
+if [ ! -d "$DATA_DIR" ]; then
+    echo "Error: Data directory '$DATA_DIR' not found!"
+    echo "Please run the batch processing script first."
+    exit 1
+fi
+
+# Create CSV header
+echo "Name,Height (m),Weight (kg)" > "$CSV_FILE"
+
+# Process each JSON file and extract data
+for json_file in "$DATA_DIR"/*.json; do
+    if [ -f "$json_file" ]; then
+        # Extract name, height, weight using jq
+        name=$(jq -r '.name' "$json_file" | sed 's/^./\U&/')  # Capitalize first letter
+        height_dm=$(jq -r '.height' "$json_file")
+        weight_hg=$(jq -r '.weight' "$json_file")
+        
+        # Convert to meters and kilograms using awk
+        height_m=$(echo "$height_dm" | awk '{ printf "%.1f", $1/10 }')
+        weight_kg=$(echo "$weight_hg" | awk '{ printf "%.1f", $1/10 }')
+        
+        # Add to CSV
+        echo "$name,$height_m,$weight_kg" >> "$CSV_FILE"
+    fi
+done
+
+# Display the report
+echo "CSV Report generated at: $CSV_FILE"
+echo ""
+cat "$CSV_FILE"
+echo ""
+
+# Calculate averages using awk
+awk -F',' '
+NR > 1 {  # Skip header row
+    height_sum += $2
+    weight_sum += $3
+    count++
+}
+END {
+    if (count > 0) {
+        avg_height = height_sum / count
+        avg_weight = weight_sum / count
+        printf "Average Height: %.2f m\n", avg_height
+        printf "Average Weight: %.2f kg\n", avg_weight
+    }
+}' "$CSV_FILE"

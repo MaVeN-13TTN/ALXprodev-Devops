@@ -14,6 +14,42 @@ A robust shell script that demonstrates the following advanced concepts:
 
 Advanced text manipulation scripts that extract and format Pokémon data using `jq`, `awk`, and `sed`:
 
+### 📊 **Data Summary Scripts** (`summaryData-0x03` & `pokemon_report`)
+
+Advanced data analysis scripts that generate CSV reports and statistical summaries using `awk`, `sed`, and `jq`:
+
+#### **Data Summary Features:**
+
+- **CSV Report Generation**: Creates formatted CSV files with Pokémon data
+- **Statistical Analysis**: Calculates averages, ranges, and data distributions
+- **Multi-format Output**: Console display, CSV files, and detailed reports
+- **Error Handling**: Validates data integrity and handles missing files
+- **Customizable Processing**: Configurable data directories and output files
+- **Advanced AWK Usage**: Complex mathematical calculations and data processing
+
+#### **Statistical Processing Techniques:**
+
+1. **AWK Data Analysis**
+
+   - Field separation and CSV processing
+   - Mathematical calculations (averages, min/max, ranges)
+   - Conditional data processing and filtering
+   - Multi-pass data analysis for complex statistics
+
+2. **Data Transformation**
+
+   - Unit conversions using mathematical operations
+   - Text formatting and capitalization with `sed`
+   - JSON parsing and field extraction with `jq`
+   - Data validation and error detection
+
+3. **Report Generation**
+
+   - Formatted console output with colors
+   - CSV file creation and management
+   - Comprehensive text reports with statistics
+   - Error logging and processing summaries
+
 ### 🔄 **Batch Processing Scripts** (`batchProcessing-0x02` & `fetch_multiple_pokemon`)
 
 Automated batch retrieval scripts that fetch data for multiple Pokémon with rate limiting and error handling:
@@ -109,6 +145,8 @@ Advanced_shell/
 ├── apiAutomation-0x00                 # Main API automation script
 ├── data_extraction_automation-0x01    # Comprehensive data extraction script
 ├── parse_pikachu                      # Simple Pokémon data parser
+├── summaryData-0x03                   # Comprehensive data summary script
+├── pokemon_report                     # Simple Pokémon data report script
 ├── batchProcessing-0x02              # Comprehensive batch processing script
 ├── fetch_multiple_pokemon             # Simple batch fetching script
 ├── README.md                          # This documentation
@@ -119,11 +157,20 @@ Advanced_shell/
 │   ├── venusaur.json
 │   ├── charmander.json
 │   └── charmeleon.json
+├── pokemon_report.csv                 # Generated: CSV report with Pokémon data
+├── pokemon_summary_report.txt         # Generated: Detailed summary report
 ├── errors.txt                         # Generated: API error logs
 ├── extraction_errors.txt              # Generated: Extraction error logs
 ├── batch_errors.txt                   # Generated: Batch processing error logs
+├── summary_errors.txt                 # Generated: Summary processing error logs
 └── batch_processing.log               # Generated: Batch processing activity log
 ```
+
+├── extraction_errors.txt # Generated: Extraction error logs
+├── batch_errors.txt # Generated: Batch processing error logs
+└── batch_processing.log # Generated: Batch processing activity log
+
+````
 
 ## Prerequisites
 
@@ -138,7 +185,7 @@ Advanced_shell/
 ```bash
 sudo apt update
 sudo apt install curl jq
-```
+````
 
 ### Installation on CentOS/RHEL:
 
@@ -209,7 +256,42 @@ chmod +x parse_pikachu
 ./data_extraction_automation-0x01 --file custom_pokemon.json
 ```
 
-### **Step 3: Batch Processing**
+### **Step 3: Data Summary**
+
+#### **Make the summary scripts executable:**
+
+```bash
+chmod +x summaryData-0x03
+chmod +x pokemon_report
+```
+
+#### **Run the simple report generator (matches sample output):**
+
+```bash
+./pokemon_report
+# Generates CSV report and calculates averages
+```
+
+#### **Run the comprehensive summary script:**
+
+```bash
+# Basic summary with CSV generation
+./summaryData-0x03
+
+# Detailed statistics with ranges and totals
+./summaryData-0x03 --stats
+
+# Generate comprehensive report file
+./summaryData-0x03 --report
+
+# Custom data directory
+./summaryData-0x03 --data-dir my_pokemon_data
+
+# Custom output file
+./summaryData-0x03 --output my_report.csv
+```
+
+### **Step 4: Batch Processing**
 
 #### **Make the batch processing scripts executable:**
 
@@ -268,6 +350,65 @@ Data file: data.json
 ==============================
 [2025-06-19 10:30:16] Script completed successfully
 [2025-06-19 10:30:16] === API Request Automation Completed ===
+```
+
+### **Data Extraction Outputs:**
+
+#### **Simple Parser (`parse_pikachu`):**
+
+```bash
+$ ./parse_pikachu
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
+```
+
+#### **Comprehensive Script (Normal Mode):**
+
+```bash
+$ ./data_extraction_automation-0x01
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
+```
+
+#### **Comprehensive Script (Verbose Mode):**
+
+```bash
+$ ./data_extraction_automation-0x01 --verbose
+=== Pokémon Data Extraction ===
+Data file: data.json
+
+Extracting components...
+Name: Pikachu
+Type(s): Electric
+Weight: 6kg
+Height: 0.4m
+
+Formatted output:
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
+
+=== Extraction Complete ===
+```
+
+### **Data Summary Outputs:**
+
+#### **Simple Pokémon Report (`pokemon_report`):**
+
+```bash
+$ ./pokemon_report
+Pikachu,Electric,6kg,0.4m
+```
+
+#### **Comprehensive Data Summary (`summaryData-0x03`):**
+
+```bash
+$ ./summaryData-0x03 --report
+Generating CSV report for Pokémon data...
+CSV report saved to: pokemon_summary_report.csv
+```
+
+```bash
+$ ./summaryData-0x03 --stats
+Calculating statistics for Pokémon data...
+Average Weight: 6kg
+Average Height: 0.4m
 ```
 
 ### **Batch Processing Outputs:**
@@ -363,46 +504,6 @@ $ jq . < pokemon_data/bulbasaur.json | head -n 30
     }
   ],
 ```
-
-### **Data Extraction Outputs:**
-
-#### **Simple Parser (`parse_pikachu`):**
-
-```bash
-$ ./parse_pikachu
-Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
-```
-
-#### **Comprehensive Script (Normal Mode):**
-
-```bash
-$ ./data_extraction_automation-0x01
-Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
-```
-
-#### **Comprehensive Script (Verbose Mode):**
-
-```bash
-$ ./data_extraction_automation-0x01 --verbose
-=== Pokémon Data Extraction ===
-Data file: data.json
-
-Extracting components...
-Name: Pikachu
-Type(s): Electric
-Weight: 6kg
-Height: 0.4m
-
-Formatted output:
-Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
-
-=== Extraction Complete ===
-```
-
-### **Generated Files:**
-
-- `data.json`: Contains the complete Pokémon data in JSON format
-- `errors.txt`: Empty file (or contains error logs if issues occurred)
 
 ## Viewing the Results
 

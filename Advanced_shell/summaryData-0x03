@@ -1,0 +1,303 @@
+#!/bin/bash
+
+# Pokémon Data Summary and Report Generation Script
+# Objective: Create a comprehensive report summarizing data for multiple Pokémon
+# Uses advanced text processing with awk, sed, and jq for data analysis
+
+# Configuration
+DATA_DIR="pokemon_data"
+CSV_FILE="pokemon_report.csv"
+ERROR_FILE="summary_errors.txt"
+
+# Colors for output formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_success() { echo -e "${GREEN}$1${NC}"; }
+print_info() { echo -e "${BLUE}$1${NC}"; }
+print_warning() { echo -e "${YELLOW}$1${NC}"; }
+print_header() { echo -e "${CYAN}$1${NC}"; }
+
+# Function to check dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    for cmd in jq awk sed; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_deps+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo "ERROR: Missing required dependencies: ${missing_deps[*]}"
+        echo "Please install the missing commands:"
+        echo "  Ubuntu/Debian: sudo apt install ${missing_deps[*]}"
+        exit 1
+    fi
+}
+
+# Function to check if data directory exists
+check_data_directory() {
+    if [ ! -d "$DATA_DIR" ]; then
+        echo "ERROR: Data directory '$DATA_DIR' not found!"
+        echo "Please run the batch processing script first to generate Pokémon data."
+        exit 1
+    fi
+    
+    # Count JSON files
+    local json_count=$(find "$DATA_DIR" -name "*.json" -type f | wc -l)
+    if [ "$json_count" -eq 0 ]; then
+        echo "ERROR: No JSON files found in '$DATA_DIR'"
+        echo "Please run the batch processing script first to generate Pokémon data."
+        exit 1
+    fi
+    
+    print_info "Found $json_count Pokémon data files"
+}
+
+# Function to generate CSV report
+generate_csv_report() {
+    print_info "Generating CSV report..."
+    
+    # Clear error file
+    > "$ERROR_FILE"
+    
+    # Create CSV header
+    echo "Name,Height (m),Weight (kg)" > "$CSV_FILE"
+    
+    # Process each JSON file
+    local processed=0
+    for json_file in "$DATA_DIR"/*.json; do
+        if [ -f "$json_file" ]; then
+            local filename=$(basename "$json_file")
+            print_info "Processing: $filename"
+            
+            # Extract data using jq with error handling
+            local name height_dm weight_hg height_m weight_kg
+            
+            if name=$(jq -r '.name' "$json_file" 2>/dev/null) && \
+               height_dm=$(jq -r '.height' "$json_file" 2>/dev/null) && \
+               weight_hg=$(jq -r '.weight' "$json_file" 2>/dev/null); then
+                
+                # Capitalize first letter using sed
+                name=$(echo "$name" | sed 's/^./\U&/')
+                
+                # Convert units using awk
+                height_m=$(echo "$height_dm" | awk '{ printf "%.1f", $1/10 }')
+                weight_kg=$(echo "$weight_hg" | awk '{ printf "%.1f", $1/10 }')
+                
+                # Add to CSV
+                echo "$name,$height_m,$weight_kg" >> "$CSV_FILE"
+                ((processed++))
+            else
+                echo "Error processing $filename" >> "$ERROR_FILE"
+                print_warning "Failed to process $filename"
+            fi
+        fi
+    done
+    
+    print_success "Processed $processed Pokémon successfully"
+}
+
+# Function to display CSV content
+display_csv_content() {
+    print_header "CSV Report generated at: $CSV_FILE"
+    echo ""
+    
+    # Display the CSV content with nice formatting
+    if command -v column &> /dev/null; then
+        column -t -s ',' "$CSV_FILE"
+    else
+        cat "$CSV_FILE"
+    fi
+    echo ""
+}
+
+# Function to calculate statistics using awk
+calculate_statistics() {
+    print_info "Calculating statistics..."
+    
+    # Calculate averages using awk
+    awk -F',' '
+    NR > 1 {  # Skip header row
+        height_sum += $2
+        weight_sum += $3
+        count++
+    }
+    END {
+        if (count > 0) {
+            avg_height = height_sum / count
+            avg_weight = weight_sum / count
+            printf "Average Height: %.2f m\n", avg_height
+            printf "Average Weight: %.2f kg\n", avg_weight
+        }
+    }' "$CSV_FILE"
+}
+
+# Function to calculate detailed statistics
+calculate_detailed_stats() {
+    print_header "=== Detailed Statistics ==="
+    
+    # Calculate comprehensive statistics using awk
+    awk -F',' '
+    BEGIN {
+        min_height = 999999; max_height = 0
+        min_weight = 999999; max_weight = 0
+    }
+    NR > 1 {  # Skip header row
+        # Track min/max
+        if ($2 < min_height) min_height = $2
+        if ($2 > max_height) max_height = $2
+        if ($3 < min_weight) min_weight = $3
+        if ($3 > max_weight) max_weight = $3
+        
+        height_sum += $2
+        weight_sum += $3
+        count++
+    }
+    END {
+        if (count > 0) {
+            avg_height = height_sum / count
+            avg_weight = weight_sum / count
+            
+            printf "Total Pokémon: %d\n", count
+            printf "Height - Min: %.1f m, Max: %.1f m, Range: %.1f m\n", min_height, max_height, max_height - min_height
+            printf "Weight - Min: %.1f kg, Max: %.1f kg, Range: %.1f kg\n", min_weight, max_weight, max_weight - min_weight
+            printf "Average Height: %.2f m\n", avg_height
+            printf "Average Weight: %.2f kg\n", avg_weight
+        }
+    }' "$CSV_FILE"
+}
+
+# Function to generate summary report file
+generate_report_file() {
+    local report_file="pokemon_summary_report.txt"
+    
+    print_info "Generating detailed report file..."
+    
+    {
+        echo "========================================"
+        echo "       POKÉMON DATA SUMMARY REPORT     "
+        echo "========================================"
+        echo "Generated on: $(date)"
+        echo "Source directory: $DATA_DIR"
+        echo "CSV output: $CSV_FILE"
+        echo ""
+        
+        echo "=== POKÉMON DATA ==="
+        cat "$CSV_FILE"
+        echo ""
+        
+        echo "=== STATISTICS ==="
+        awk -F',' '
+        NR > 1 {
+            height_sum += $2; weight_sum += $3; count++
+        }
+        END {
+            if (count > 0) {
+                printf "Total Pokémon: %d\n", count
+                printf "Average Height: %.2f m\n", height_sum / count
+                printf "Average Weight: %.2f kg\n", weight_sum / count
+            }
+        }' "$CSV_FILE"
+        
+        if [ -s "$ERROR_FILE" ]; then
+            echo ""
+            echo "=== PROCESSING ERRORS ==="
+            cat "$ERROR_FILE"
+        fi
+        
+    } > "$report_file"
+    
+    print_success "Detailed report saved to: $report_file"
+}
+
+# Function to display usage
+show_usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Generate Pokémon data summary and CSV report"
+    echo ""
+    echo "OPTIONS:"
+    echo "  -h, --help          Show this help message"
+    echo "  -d, --data-dir DIR  Specify data directory (default: pokemon_data)"
+    echo "  -o, --output FILE   Specify CSV output file (default: pokemon_report.csv)"
+    echo "  -s, --stats         Show detailed statistics"
+    echo "  -r, --report        Generate detailed report file"
+    echo ""
+    echo "Examples:"
+    echo "  $0                     # Generate basic report"
+    echo "  $0 --stats             # Generate report with detailed statistics"
+    echo "  $0 --report            # Generate report and save to file"
+}
+
+# Main execution function
+main() {
+    local show_detailed_stats=false
+    local generate_file_report=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -d|--data-dir)
+                DATA_DIR="$2"
+                shift 2
+                ;;
+            -o|--output)
+                CSV_FILE="$2"
+                shift 2
+                ;;
+            -s|--stats)
+                show_detailed_stats=true
+                shift
+                ;;
+            -r|--report)
+                generate_file_report=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Main processing steps
+    check_dependencies
+    check_data_directory
+    generate_csv_report
+    display_csv_content
+    calculate_statistics
+    
+    if [ "$show_detailed_stats" = true ]; then
+        echo ""
+        calculate_detailed_stats
+    fi
+    
+    if [ "$generate_file_report" = true ]; then
+        echo ""
+        generate_report_file
+    fi
+    
+    # Show any errors that occurred
+    if [ -s "$ERROR_FILE" ]; then
+        echo ""
+        print_warning "Some errors occurred during processing. Check $ERROR_FILE for details."
+    fi
+    
+    echo ""
+    print_success "Report generation completed successfully!"
+}
+
+# Execute main function with all arguments
+main "$@"
