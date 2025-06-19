@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# API Request Automation Script
+# Objective: Automate the process of making API requests to the Pokémon API
+# and saving the results to a file with proper error handling
+
+# Set up error handling
+set -e
+trap 'echo "Error occurred on line $LINENO. Exit code: $?" >> errors.txt; exit 1' ERR
+
+# Configuration
+POKEMON_NAME="pikachu"
+API_URL="https://pokeapi.co/api/v2/pokemon/${POKEMON_NAME}"
+DATA_FILE="data.json"
+ERROR_FILE="errors.txt"
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Function to log messages
+log_message() {
+    echo "[$TIMESTAMP] $1"
+}
+
+# Function to log errors
+log_error() {
+    echo "[$TIMESTAMP] ERROR: $1" >> "$ERROR_FILE"
+    echo "ERROR: $1" >&2
+}
+
+# Function to make API request
+make_api_request() {
+    log_message "Starting API request for Pokémon: $POKEMON_NAME"
+    
+    # Check if curl is available
+    if ! command -v curl &> /dev/null; then
+        log_error "curl command not found. Please install curl to proceed."
+        exit 1
+    fi
+    
+    # Make the API request with error handling
+    log_message "Making request to: $API_URL"
+    
+    # Use curl with proper error handling and timeout
+    if curl -s --fail --connect-timeout 30 --max-time 60 "$API_URL" -o "$DATA_FILE"; then
+        log_message "Successfully retrieved data for $POKEMON_NAME"
+        log_message "Data saved to: $DATA_FILE"
+        
+        # Verify the JSON is valid
+        if command -v jq &> /dev/null; then
+            if jq empty "$DATA_FILE" 2>/dev/null; then
+                log_message "JSON data validation successful"
+                
+                # Display basic info about the retrieved Pokémon
+                echo "=== Pokémon Data Retrieved ==="
+                echo "Name: $(jq -r '.name' "$DATA_FILE")"
+                echo "ID: $(jq -r '.id' "$DATA_FILE")"
+                echo "Height: $(jq -r '.height' "$DATA_FILE")"
+                echo "Weight: $(jq -r '.weight' "$DATA_FILE")"
+                echo "Base Experience: $(jq -r '.base_experience' "$DATA_FILE")"
+                echo "Data file: $DATA_FILE"
+                echo "=============================="
+            else
+                log_error "Retrieved data is not valid JSON"
+                rm -f "$DATA_FILE"
+                exit 1
+            fi
+        else
+            log_message "jq not available for JSON validation, but data was retrieved successfully"
+        fi
+    else
+        # Capture the curl exit code
+        CURL_EXIT_CODE=$?
+        case $CURL_EXIT_CODE in
+            6)
+                log_error "Could not resolve host. Check your internet connection."
+                ;;
+            7)
+                log_error "Failed to connect to the API server."
+                ;;
+            22)
+                log_error "HTTP error occurred. The Pokémon '$POKEMON_NAME' might not exist."
+                ;;
+            28)
+                log_error "Request timed out. The server took too long to respond."
+                ;;
+            *)
+                log_error "API request failed with exit code: $CURL_EXIT_CODE"
+                ;;
+        esac
+        exit 1
+    fi
+}
+
+# Function to cleanup on successful completion
+cleanup_on_success() {
+    log_message "Script completed successfully"
+}
+
+# Main execution
+main() {
+    log_message "=== API Request Automation Started ==="
+    
+    # Remove old error file if it exists
+    > "$ERROR_FILE"
+    
+    # Make the API request
+    make_api_request
+    
+    # Cleanup
+    cleanup_on_success
+    
+    log_message "=== API Request Automation Completed ==="
+}
+
+# Execute main function
+main "$@"
