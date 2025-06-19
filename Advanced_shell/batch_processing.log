@@ -15,3 +15,24 @@
 [2025-06-19 13:26:42] Successfully saved data for charmander after 1 attempt(s)
 [2025-06-19 13:26:42] Waiting 2s before next request (rate limiting)
 [2025-06-19 13:26:42] Batch processing completed. Success: 5, Failed: 0, Skipped: 4
+[2025-06-19 13:37:36] Batch processing started with 5 Pokémon
+[2025-06-19 13:37:36] Starting API request for: bulbasaur
+[2025-06-19 13:37:36] Attempt 1/3 for bulbasaur
+[2025-06-19 13:37:36] Successfully saved data for bulbasaur after 1 attempt(s)
+[2025-06-19 13:37:36] Waiting 1s before next request (rate limiting)
+[2025-06-19 13:37:36] Starting API request for: ivysaur
+[2025-06-19 13:37:36] Attempt 1/3 for ivysaur
+[2025-06-19 13:37:36] Successfully saved data for ivysaur after 1 attempt(s)
+[2025-06-19 13:37:36] Waiting 1s before next request (rate limiting)
+[2025-06-19 13:37:36] Starting API request for: venusaur
+[2025-06-19 13:37:36] Attempt 1/3 for venusaur
+[2025-06-19 13:37:36] Successfully saved data for venusaur after 1 attempt(s)
+[2025-06-19 13:37:36] Waiting 1s before next request (rate limiting)
+[2025-06-19 13:37:36] Starting API request for: charmander
+[2025-06-19 13:37:36] Attempt 1/3 for charmander
+[2025-06-19 13:37:36] Successfully saved data for charmander after 1 attempt(s)
+[2025-06-19 13:37:36] Waiting 1s before next request (rate limiting)
+[2025-06-19 13:37:36] Starting API request for: charmeleon
+[2025-06-19 13:37:36] Attempt 1/3 for charmeleon
+[2025-06-19 13:37:36] Successfully saved data for charmeleon after 1 attempt(s)
+[2025-06-19 13:37:36] Batch processing completed. Success: 5, Failed: 0, Skipped: 0

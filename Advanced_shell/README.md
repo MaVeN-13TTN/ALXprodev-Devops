@@ -50,9 +50,13 @@ Advanced data analysis scripts that generate CSV reports and statistical summari
    - Comprehensive text reports with statistics
    - Error logging and processing summaries
 
-### 🔄 **Batch Processing Scripts** (`batchProcessing-0x02` & `fetch_multiple_pokemon`)
+### 🔄 **Batch Processing Scripts** (`batchProcessing-0x02`, `batchProcessing-0x04` & `fetch_multiple_pokemon`)
 
-Automated batch retrieval scripts that fetch data for multiple Pokémon with rate limiting and error handling:
+Automated batch retrieval scripts that fetch data for multiple Pokémon with various processing approaches:
+
+1. **Sequential Processing** (`batchProcessing-0x02`): Enhanced error handling and retry logic
+2. **Parallel Processing** (`batchProcessing-0x04`): High-speed parallel fetching using background processes
+3. **Simple Batch** (`fetch_multiple_pokemon`): Basic sequential fetching
 
 #### **Batch Processing Features:**
 
@@ -98,6 +102,43 @@ Automated batch retrieval scripts that fetch data for multiple Pokémon with rat
    --retry-delay SEC      # Set delay between retries (seconds)
    --delay SEC           # Set delay between normal requests (seconds)
    ```
+
+#### **Parallel Processing Features** (`batchProcessing-0x04`):
+
+1. **Background Job Management**
+
+   - **Concurrent Workers**: Configurable number of parallel processes (default: 3)
+   - **Process Monitoring**: Real-time progress tracking with live updates
+   - **Job Control**: Automatic process spawning and completion waiting
+   - **Resource Limits**: Prevents API overload with configurable concurrency
+
+2. **Advanced Process Control**
+
+   - **Background Process Creation**: Uses `&` for non-blocking execution
+   - **Process ID Tracking**: Maintains PID arrays for all worker processes
+   - **Wait Mechanisms**: Uses `wait` and `wait -n` for process synchronization
+   - **Signal Handling**: Graceful cleanup on interruption (SIGINT, SIGTERM)
+
+3. **Performance Optimizations**
+
+   - **Speed Improvement**: Up to 2.5x faster than sequential processing
+   - **Parallel Execution**: Multiple API requests simultaneously
+   - **Temporary File Management**: Isolated worker environments
+   - **Atomic Operations**: Safe file moves to prevent corruption
+
+4. **Parallel Configuration Options**
+
+   ```bash
+   --jobs NUM            # Set maximum concurrent jobs (1-10)
+   --timeout SEC         # Set request timeout per worker (seconds)
+   --retries NUM         # Set retry attempts per worker (1-5)
+   ```
+
+5. **Monitoring & Cleanup**
+   - **Real-time Progress**: Live status updates during processing
+   - **Automatic Cleanup**: Temporary files and processes cleaned on exit
+   - **Process Validation**: Ensures all workers complete successfully
+   - **Statistics Tracking**: Detailed performance metrics and timing
 
 #### **Process Management Techniques:**
 
@@ -183,6 +224,7 @@ Advanced_shell/
 ├── summaryData-0x03                   # Comprehensive data summary script
 ├── pokemon_report                     # Simple Pokémon data report script
 ├── batchProcessing-0x02              # Comprehensive batch processing script
+├── batchProcessing-0x04              # Parallel processing script with background jobs
 ├── fetch_multiple_pokemon             # Simple batch fetching script
 ├── README.md                          # This documentation
 ├── data.json                          # Generated: Single Pokémon data (Pikachu)
@@ -332,6 +374,7 @@ chmod +x pokemon_report
 
 ```bash
 chmod +x batchProcessing-0x02
+chmod +x batchProcessing-0x04
 chmod +x fetch_multiple_pokemon
 ```
 
@@ -371,6 +414,34 @@ chmod +x fetch_multiple_pokemon
 
 # View help and all available options
 ./batchProcessing-0x02 --help
+```
+
+#### **Run the parallel processing script for maximum speed:**
+
+```bash
+# High-speed parallel processing (default: 3 concurrent jobs)
+./batchProcessing-0x04
+
+# Maximum parallelism (5 concurrent jobs)
+./batchProcessing-0x04 --jobs 5
+
+# Custom timeout and retries
+./batchProcessing-0x04 --timeout 60 --retries 3
+
+# Conservative parallel processing (2 concurrent jobs)
+./batchProcessing-0x04 --jobs 2
+
+# Custom output directory with parallel processing
+./batchProcessing-0x04 --output parallel_data --jobs 4
+
+# Validate existing files only
+./batchProcessing-0x04 --validate
+
+# Show file statistics
+./batchProcessing-0x04 --stats
+
+# View help and all available options
+./batchProcessing-0x04 --help
 ```
 
 ## Expected Output
@@ -555,6 +626,66 @@ $ ./batchProcessing-0x02 --validate
 
 # Statistics only mode (show file info without downloading)
 $ ./batchProcessing-0x02 --stats
+```
+
+#### **Parallel Processing Output** (`batchProcessing-0x04`):
+
+```bash
+$ ./batchProcessing-0x04 --jobs 5
+=== Starting Parallel Batch Processing ===
+Processing 5 Pokémon with up to 5 concurrent jobs
+Started worker 1 for bulbasaur (PID: 69658)
+Monitoring parallel processing progress...
+Progress: 0/5 completed, 1 runningStarted worker 2 for ivysaur (PID: 69666)
+Progress: 2/5 completed, 0 runningStarted worker 3 for venusaur (PID: 69687)
+Started worker 4 for charmander (PID: 69719)
+Progress: 4/5 completed, 0 runningStarted worker 5 for charmeleon (PID: 69733)
+Waiting for all workers to complete...
+All parallel processing completed!
+
+=== Processing Results Analysis ===
+✅ bulbasaur - Success (1 attempt(s))
+✅ ivysaur - Success (1 attempt(s))
+✅ venusaur - Success (1 attempt(s))
+✅ charmander - Success (1 attempt(s))
+✅ charmeleon - Success (1 attempt(s))
+
+=== Final Statistics ===
+✅ Total Successful: 5/5
+📊 Success rate for new downloads: 100.0%
+📈 Average attempts per success: 1.0
+
+=== File Validation ===
+✅ bulbasaur.json - Valid
+✅ ivysaur.json - Valid
+✅ venusaur.json - Valid
+✅ charmander.json - Valid
+✅ charmeleon.json - Valid
+All files validated successfully!
+
+=== File Statistics ===
+bulbasaur       | ID: 1   | Size: 252KiB   | H: 7   | W: 69
+ivysaur         | ID: 2   | Size: 222KiB   | H: 10  | W: 130
+venusaur        | ID: 3   | Size: 262KiB   | H: 20  | W: 1000
+charmander      | ID: 4   | Size: 279KiB   | H: 6   | W: 85
+charmeleon      | ID: 5   | Size: 244KiB   | H: 11  | W: 190
+
+Total execution time: 3 seconds
+Cleaning up temporary files and processes...
+```
+
+#### **Performance Comparison:**
+
+```bash
+# Sequential Processing (batchProcessing-0x02)
+$ time ./batchProcessing-0x02
+real    0m6.820s    # 6.8 seconds
+
+# Parallel Processing (batchProcessing-0x04)
+$ time ./batchProcessing-0x04 --jobs 5
+real    0m2.742s    # 2.7 seconds
+
+# Speed Improvement: 2.5x faster with parallel processing!
 ```
 
 #### **Validation of Downloaded Files:**
