@@ -1,4 +1,4 @@
-# Advanced Shell Scripting - API Request Automation
+# Advanced Shell Scripting
 
 ## Overview
 
@@ -9,6 +9,39 @@ This project demonstrates advanced shell scripting techniques for automating API
 ### 🚀 **API Request Automation Script** (`apiAutomation-0x00`)
 
 A robust shell script that demonstrates the following advanced concepts:
+
+### 📊 **Data Extraction Scripts** (`data_extraction_automation-0x01` & `parse_pikachu`)
+
+Advanced text manipulation scripts that extract and format Pokémon data using `jq`, `awk`, and `sed`:
+
+#### **Data Extraction Features:**
+
+- **Advanced Text Processing**: Uses `jq`, `awk`, and `sed` for sophisticated text manipulation
+- **JSON Parsing**: Extracts specific fields from complex JSON structures
+- **Data Transformation**: Converts units (hectograms to kg, decimeters to meters)
+- **String Formatting**: Capitalizes names and formats output strings
+- **Error Handling**: Validates data availability and command dependencies
+- **Multiple Output Modes**: Simple and verbose extraction modes
+
+#### **Text Processing Techniques Demonstrated:**
+
+1. **jq JSON Processing**
+
+   - Extracting nested JSON values
+   - Array processing for types
+   - Raw output formatting
+
+2. **awk Text Manipulation**
+
+   - Mathematical calculations for unit conversion
+   - String formatting with printf
+   - Multi-line processing and concatenation
+   - Conditional output formatting
+
+3. **sed Stream Editing**
+   - Case conversion (uppercase/lowercase)
+   - Whitespace normalization
+   - Pattern-based text cleaning
 
 #### **Core Features:**
 
@@ -52,10 +85,13 @@ A robust shell script that demonstrates the following advanced concepts:
 
 ```
 Advanced_shell/
-├── apiAutomation-0x00    # Main automation script
-├── README.md            # This documentation
-├── data.json           # Generated: Pokémon data (after successful run)
-└── errors.txt          # Generated: Error logs (if any errors occur)
+├── apiAutomation-0x00                 # Main API automation script
+├── data_extraction_automation-0x01    # Comprehensive data extraction script
+├── parse_pikachu                      # Simple Pokémon data parser
+├── README.md                          # This documentation
+├── data.json                          # Generated: Pokémon data (after API run)
+├── errors.txt                         # Generated: API error logs
+└── extraction_errors.txt              # Generated: Extraction error logs
 ```
 
 ## Prerequisites
@@ -89,19 +125,21 @@ brew install curl jq
 
 ## How to Run
 
-### 1. **Make the Script Executable**
+### **Step 1: API Data Retrieval**
+
+#### **Make the API script executable:**
 
 ```bash
 chmod +x apiAutomation-0x00
 ```
 
-### 2. **Run the Script**
+#### **Run the API automation script:**
 
 ```bash
 ./apiAutomation-0x00
 ```
 
-### 3. **Alternative Execution Methods**
+#### **Alternative execution methods:**
 
 ```bash
 # Direct bash execution
@@ -111,9 +149,38 @@ bash apiAutomation-0x00
 /bin/bash apiAutomation-0x00
 ```
 
+### **Step 2: Data Extraction**
+
+#### **Make the extraction scripts executable:**
+
+```bash
+chmod +x data_extraction_automation-0x01
+chmod +x parse_pikachu
+```
+
+#### **Run the simple parser (matches sample output):**
+
+```bash
+./parse_pikachu
+# Output: Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
+```
+
+#### **Run the comprehensive extraction script:**
+
+```bash
+# Simple output
+./data_extraction_automation-0x01
+
+# Verbose output with detailed breakdown
+./data_extraction_automation-0x01 --verbose
+
+# Custom data file
+./data_extraction_automation-0x01 --file custom_pokemon.json
+```
+
 ## Expected Output
 
-### **Successful Execution:**
+### **API Script Execution:**
 
 ```bash
 [2025-06-19 10:30:15] === API Request Automation Started ===
@@ -132,6 +199,41 @@ Data file: data.json
 ==============================
 [2025-06-19 10:30:16] Script completed successfully
 [2025-06-19 10:30:16] === API Request Automation Completed ===
+```
+
+### **Data Extraction Outputs:**
+
+#### **Simple Parser (`parse_pikachu`):**
+
+```bash
+$ ./parse_pikachu
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
+```
+
+#### **Comprehensive Script (Normal Mode):**
+
+```bash
+$ ./data_extraction_automation-0x01
+Pikachu is of type Electric, weighs 6.0kg, and is 0.4m tall.
+```
+
+#### **Comprehensive Script (Verbose Mode):**
+
+```bash
+$ ./data_extraction_automation-0x01 --verbose
+=== Pokémon Data Extraction ===
+Data file: data.json
+
+Extracting components...
+Name: Pikachu
+Type(s): Electric
+Weight: 6.0kg
+Height: 0.4m
+
+Formatted output:
+Pikachu is of type Electric, weighs 6.0kg, and is 0.4m tall.
+
+=== Extraction Complete ===
 ```
 
 ### **Generated Files:**

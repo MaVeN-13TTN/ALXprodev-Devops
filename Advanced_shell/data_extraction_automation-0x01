@@ -1,0 +1,220 @@
+#!/bin/bash
+
+# Data Extraction Automation Script
+# Objective: Extract specific Pokémon data using advanced text manipulation tools
+# Uses: jq, awk, sed for text processing and formatting
+
+# Configuration
+DATA_FILE="data.json"
+ERROR_FILE="extraction_errors.txt"
+
+# Function to check if required commands are available
+check_dependencies() {
+    local missing_deps=()
+    
+    # Check for required commands
+    for cmd in jq awk sed; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_deps+=("$cmd")
+        fi
+    done
+    
+    # If any dependencies are missing, exit with error
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo "ERROR: Missing required dependencies: ${missing_deps[*]}" >&2
+        echo "Please install the missing commands and try again." >&2
+        exit 1
+    fi
+}
+
+# Function to check if data file exists
+check_data_file() {
+    if [ ! -f "$DATA_FILE" ]; then
+        echo "ERROR: Data file '$DATA_FILE' not found!" >&2
+        echo "Please run the API automation script first to generate the data file." >&2
+        exit 1
+    fi
+    
+    # Verify the file is not empty
+    if [ ! -s "$DATA_FILE" ]; then
+        echo "ERROR: Data file '$DATA_FILE' is empty!" >&2
+        exit 1
+    fi
+}
+
+# Function to extract Pokémon name using jq
+extract_name() {
+    # Use jq to extract the name and capitalize first letter with sed
+    jq -r '.name' "$DATA_FILE" | sed 's/^./\U&/'
+}
+
+# Function to extract Pokémon types using jq and awk
+extract_types() {
+    # Extract all types and format them properly
+    jq -r '.types[].type.name' "$DATA_FILE" | \
+    awk 'BEGIN { ORS = "" } 
+         { if (NR > 1) print ", "; 
+           print toupper(substr($0,1,1)) tolower(substr($0,2)) }
+         END { print "" }'
+}
+
+# Function to extract weight using jq and awk for unit conversion
+extract_weight() {
+    # Extract weight (in hectograms) and convert to kg using awk
+    jq -r '.weight' "$DATA_FILE" | \
+    awk '{ printf "%.1fkg", $1/10 }'
+}
+
+# Function to extract height using jq and awk for unit conversion
+extract_height() {
+    # Extract height (in decimeters) and convert to meters using awk
+    jq -r '.height' "$DATA_FILE" | \
+    awk '{ printf "%.1fm", $1/10 }'
+}
+
+# Function to format the final output using sed for text manipulation
+format_output() {
+    local name="$1"
+    local types="$2"
+    local weight="$3"
+    local height="$4"
+    
+    # Create the base sentence
+    local output="$name is of type $types, weighs $weight, and is $height tall."
+    
+    # Use sed to ensure proper formatting and handle any edge cases
+    echo "$output" | sed 's/  */ /g; s/^ *//; s/ *$//'
+}
+
+# Function to handle errors and log them
+handle_error() {
+    local error_msg="$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $error_msg" >> "$ERROR_FILE"
+    echo "ERROR: $error_msg" >&2
+    exit 1
+}
+
+# Main extraction function
+extract_pokemon_data() {
+    # Clear any previous error logs
+    > "$ERROR_FILE"
+    
+    # Extract individual components
+    local name
+    local types
+    local weight
+    local height
+    
+    # Extract name with error handling
+    if ! name=$(extract_name); then
+        handle_error "Failed to extract Pokémon name"
+    fi
+    
+    # Extract types with error handling
+    if ! types=$(extract_types); then
+        handle_error "Failed to extract Pokémon types"
+    fi
+    
+    # Extract weight with error handling
+    if ! weight=$(extract_weight); then
+        handle_error "Failed to extract Pokémon weight"
+    fi
+    
+    # Extract height with error handling
+    if ! height=$(extract_height); then
+        handle_error "Failed to extract Pokémon height"
+    fi
+    
+    # Validate that we have all required data
+    if [ -z "$name" ] || [ -z "$types" ] || [ -z "$weight" ] || [ -z "$height" ]; then
+        handle_error "Missing required data fields"
+    fi
+    
+    # Format and output the result
+    format_output "$name" "$types" "$weight" "$height"
+}
+
+# Function to display usage information
+show_usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Extract and format Pokémon data from JSON file using advanced text manipulation."
+    echo ""
+    echo "OPTIONS:"
+    echo "  -h, --help     Show this help message"
+    echo "  -f, --file     Specify custom data file (default: data.json)"
+    echo "  -v, --verbose  Enable verbose output"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Extract data from default file"
+    echo "  $0 -f custom.json     # Extract data from custom file"
+    echo "  $0 --verbose          # Extract with verbose output"
+}
+
+# Function for verbose output
+verbose_extract() {
+    echo "=== Pokémon Data Extraction ==="
+    echo "Data file: $DATA_FILE"
+    echo ""
+    
+    echo "Extracting components..."
+    local name=$(extract_name)
+    echo "Name: $name"
+    
+    local types=$(extract_types)
+    echo "Type(s): $types"
+    
+    local weight=$(extract_weight)
+    echo "Weight: $weight"
+    
+    local height=$(extract_height)
+    echo "Height: $height"
+    
+    echo ""
+    echo "Formatted output:"
+    format_output "$name" "$types" "$weight" "$height"
+    echo ""
+    echo "=== Extraction Complete ==="
+}
+
+# Main execution function
+main() {
+    local verbose=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -f|--file)
+                DATA_FILE="$2"
+                shift 2
+                ;;
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Check dependencies and data file
+    check_dependencies
+    check_data_file
+    
+    # Extract and display data
+    if [ "$verbose" = true ]; then
+        verbose_extract
+    else
+        extract_pokemon_data
+    fi
+}
+
+# Execute main function with all arguments
+main "$@"
