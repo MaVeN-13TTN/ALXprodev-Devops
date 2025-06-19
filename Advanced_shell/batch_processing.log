@@ -1,0 +1,17 @@
+[2025-06-19 13:23:13] Batch processing started with 5 Pokémon
+[2025-06-19 13:24:50] Batch processing started with 5 Pokémon
+[2025-06-19 13:25:41] Batch processing started with 5 Pokémon
+[2025-06-19 13:25:41] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:25:41] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:25:41] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:25:41] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:25:41] Batch processing completed. Success: 5, Failed: 0, Skipped: 5
+[2025-06-19 13:26:42] Batch processing started with 5 Pokémon
+[2025-06-19 13:26:42] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:26:42] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:26:42] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:26:42] Starting API request for: charmander
+[2025-06-19 13:26:42] Attempt 1/2 for charmander
+[2025-06-19 13:26:42] Successfully saved data for charmander after 1 attempt(s)
+[2025-06-19 13:26:42] Waiting 2s before next request (rate limiting)
+[2025-06-19 13:26:42] Batch processing completed. Success: 5, Failed: 0, Skipped: 4

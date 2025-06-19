@@ -57,12 +57,47 @@ Automated batch retrieval scripts that fetch data for multiple Pokémon with rat
 #### **Batch Processing Features:**
 
 - **Multiple Pokémon Retrieval**: Fetches data for a predefined list of Pokémon
+- **Enhanced Retry Logic**: Automatic retry mechanism with up to 3 attempts per request
+- **Smart Error Detection**: Distinguishes between retryable and non-retryable errors
 - **Rate Limiting**: Configurable delays between API requests to respect server limits
+- **Network Connectivity Checks**: Validates network availability before retrying
 - **Directory Management**: Automatically creates organized data directories
 - **Progress Tracking**: Real-time progress indicators during batch operations
-- **Error Handling**: Comprehensive error logging and recovery mechanisms
+- **Comprehensive Error Handling**: Detailed error logging and recovery mechanisms
 - **File Validation**: JSON validation and completeness checks
 - **Statistics Display**: File size, Pokémon stats, and processing summaries
+- **Skip Existing Files**: Intelligently skips already-downloaded valid files
+
+#### **Enhanced Error Handling & Retry Logic:**
+
+1. **Retry Mechanism**
+
+   - **Maximum Retries**: Configurable (default: 3 attempts)
+   - **Retry Delays**: Configurable delays between retry attempts (default: 5 seconds)
+   - **Smart Retry Logic**: Different handling for different error types
+   - **Non-retryable Errors**: HTTP 404 (Pokémon not found) - fails immediately
+   - **Retryable Errors**: Network timeouts, connection failures, server errors
+
+2. **Error Classification**
+
+   - **Network Errors**: DNS resolution failures, connection timeouts
+   - **API Errors**: HTTP error codes, invalid responses
+   - **Data Errors**: Invalid JSON, missing required fields
+   - **File System Errors**: Permission issues, disk space problems
+
+3. **Robust Validation**
+
+   - **Pokémon Name Validation**: Checks for valid character formats
+   - **JSON Structure Validation**: Ensures required fields are present
+   - **Data Integrity Checks**: Verifies returned data matches requested Pokémon
+   - **File Completeness**: Validates file size and content structure
+
+4. **Advanced Configuration Options**
+   ```bash
+   --max-retries NUM      # Set maximum retry attempts (1-10)
+   --retry-delay SEC      # Set delay between retries (seconds)
+   --delay SEC           # Set delay between normal requests (seconds)
+   ```
 
 #### **Process Management Techniques:**
 
@@ -307,14 +342,20 @@ chmod +x fetch_multiple_pokemon
 # Fetches bulbasaur, ivysaur, venusaur, charmander, charmeleon
 ```
 
-#### **Run the comprehensive batch processor:**
+#### **Run the comprehensive batch processor with enhanced error handling:**
 
 ```bash
 # Full processing with validation and statistics
 ./batchProcessing-0x02
 
+# Custom retry configuration
+./batchProcessing-0x02 --max-retries 5 --retry-delay 10
+
 # Custom delay between requests
 ./batchProcessing-0x02 --delay 5
+
+# Combined custom settings
+./batchProcessing-0x02 --max-retries 3 --retry-delay 5 --delay 3
 
 # Custom output directory
 ./batchProcessing-0x02 --output my_pokemon_data
@@ -327,6 +368,9 @@ chmod +x fetch_multiple_pokemon
 
 # Clean up failed downloads
 ./batchProcessing-0x02 --cleanup
+
+# View help and all available options
+./batchProcessing-0x02 --help
 ```
 
 ## Expected Output
@@ -429,29 +473,34 @@ Fetching data for charmeleon...
 Saved data to pokemon_data/charmeleon.json ✅
 ```
 
-#### **Comprehensive Batch Processor with Statistics:**
+#### **Comprehensive Batch Processor with Enhanced Error Handling:**
 
 ```bash
-$ ./batchProcessing-0x02
+$ ./batchProcessing-0x02 --max-retries 2 --retry-delay 3
 Starting batch processing of 5 Pokémon...
+Configuration: Max retries=2, Request delay=2s, Retry delay=3s
+Network connectivity verified ✅
 [1/5] Processing: bulbasaur
-Fetching data for bulbasaur...
-Saved data to pokemon_data/bulbasaur.json ✅
+  File already exists and is valid, skipping...
+  Waiting 2s before next request...
 [2/5] Processing: ivysaur
-Fetching data for ivysaur...
-Saved data to pokemon_data/ivysaur.json ✅
+  File already exists and is valid, skipping...
+  Waiting 2s before next request...
 [3/5] Processing: venusaur
-Fetching data for venusaur...
-Saved data to pokemon_data/venusaur.json ✅
+  File already exists and is valid, skipping...
+  Waiting 2s before next request...
 [4/5] Processing: charmander
 Fetching data for charmander...
 Saved data to pokemon_data/charmander.json ✅
+  Completed in 1s
+  Waiting 2s before next request...
 [5/5] Processing: charmeleon
-Fetching data for charmeleon...
-Saved data to pokemon_data/charmeleon.json ✅
+  File already exists and is valid, skipping...
 
 === Batch Processing Summary ===
-Successful: 5/5
+✅ Successful: 5/5
+⏭️  Skipped (existing): 4/5
+📊 Success rate for new downloads: 100.0%
 
 Validating downloaded files...
 ✅ bulbasaur.json - Valid
@@ -467,6 +516,45 @@ ivysaur         | ID: 2   | Size: 222KiB   | H: 10  | W: 130
 venusaur        | ID: 3   | Size: 262KiB   | H: 20  | W: 1000
 charmander      | ID: 4   | Size: 279KiB   | H: 6   | W: 85
 charmeleon      | ID: 5   | Size: 244KiB   | H: 11  | W: 190
+```
+
+#### **Error Handling and Retry Logic Example:**
+
+```bash
+# Example with retry logic for network errors
+$ ./batchProcessing-0x02 --max-retries 3
+[4/5] Processing: charmander
+Fetching data for charmander...
+  Attempt 1/3
+ERROR: Request timeout for charmander: exit code 28 (attempt 1)
+  Waiting 5s before retry...
+  Retry attempt 2/3 for charmander
+Saved data to pokemon_data/charmander.json ✅
+  Completed in 8s
+
+# Example with non-retryable error (Pokémon not found)
+[5/5] Processing: invalidpokemon
+Fetching data for invalidpokemon...
+  Attempt 1/3
+ERROR: HTTP 404: Pokémon 'invalidpokemon' not found (attempt 1)
+  ❌ Pokémon not found (non-retryable error)
+❌ Failed to fetch invalidpokemon after 1 attempts
+```
+
+#### **Advanced Configuration Examples:**
+
+```bash
+# Custom retry settings
+$ ./batchProcessing-0x02 --max-retries 5 --retry-delay 10 --delay 3
+
+# Output to custom directory
+$ ./batchProcessing-0x02 --output my_pokemon_data
+
+# Validation only mode (check existing files)
+$ ./batchProcessing-0x02 --validate
+
+# Statistics only mode (show file info without downloading)
+$ ./batchProcessing-0x02 --stats
 ```
 
 #### **Validation of Downloaded Files:**

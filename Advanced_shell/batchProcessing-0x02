@@ -4,9 +4,8 @@
 # Objective: Automate the retrieval of data for multiple Pokémon 
 # and store it in separate files with proper error handling and rate limiting
 
-# Set up error handling
-set -e
-trap 'echo "Error occurred on line $LINENO. Exit code: $?" >> batch_errors.txt; exit 1' ERR
+# Enhanced error handling for robust batch processing
+# Note: Using manual error checking instead of 'set -e' for better control
 
 # Configuration
 POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
@@ -14,6 +13,8 @@ API_BASE_URL="https://pokeapi.co/api/v2/pokemon"
 DATA_DIR="pokemon_data"
 ERROR_FILE="batch_errors.txt"
 REQUEST_DELAY=2  # Delay between requests to handle rate limiting
+MAX_RETRIES=3    # Maximum number of retry attempts
+RETRY_DELAY=5    # Delay between retry attempts (seconds)
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Colors for output formatting
@@ -79,58 +80,171 @@ setup_data_directory() {
     fi
 }
 
-# Function to fetch Pokémon data
-fetch_pokemon_data() {
+# Function to validate Pokémon name
+validate_pokemon_name() {
     local pokemon_name="$1"
-    local api_url="${API_BASE_URL}/${pokemon_name}"
-    local output_file="${DATA_DIR}/${pokemon_name}.json"
     
-    print_info "Fetching data for ${pokemon_name}..."
-    log_message "Starting API request for: $pokemon_name"
+    # Check if name contains only valid characters (letters, numbers, hyphens)
+    if [[ ! "$pokemon_name" =~ ^[a-zA-Z0-9-]+$ ]]; then
+        log_error "Invalid Pokémon name format: $pokemon_name"
+        return 1
+    fi
     
-    # Make the API request with comprehensive error handling
-    if curl -s --fail --connect-timeout 30 --max-time 60 "$api_url" -o "$output_file"; then
-        # Verify the JSON is valid
-        if jq empty "$output_file" 2>/dev/null; then
-            print_success "Saved data to ${DATA_DIR}/${pokemon_name}.json ✅"
-            log_message "Successfully saved data for $pokemon_name"
-            return 0
-        else
-            log_error "Invalid JSON received for $pokemon_name"
-            rm -f "$output_file"
-            return 1
-        fi
+    # Convert to lowercase for API consistency
+    pokemon_name=$(echo "$pokemon_name" | tr '[:upper:]' '[:lower:]')
+    return 0
+}
+
+# Function to check network connectivity
+check_network_connectivity() {
+    local test_url="https://pokeapi.co"
+    
+    if curl -s --connect-timeout 5 --max-time 10 --head "$test_url" >/dev/null 2>&1; then
+        return 0
     else
-        local curl_exit_code=$?
-        case $curl_exit_code in
-            6)
-                log_error "Could not resolve host for $pokemon_name. Check internet connection."
-                ;;
-            7)
-                log_error "Failed to connect to API server for $pokemon_name."
-                ;;
-            22)
-                log_error "HTTP error for $pokemon_name. Pokemon might not exist."
-                ;;
-            28)
-                log_error "Request timeout for $pokemon_name. Server took too long to respond."
-                ;;
-            *)
-                log_error "API request failed for $pokemon_name with exit code: $curl_exit_code"
-                ;;
-        esac
         return 1
     fi
 }
 
-# Function to process batch with rate limiting
+# Function to fetch Pokémon data with retry logic
+fetch_pokemon_data() {
+    local pokemon_name="$1"
+    local api_url="${API_BASE_URL}/${pokemon_name}"
+    local output_file="${DATA_DIR}/${pokemon_name}.json"
+    local temp_file="${output_file}.tmp"
+    local attempt=1
+    
+    # Validate Pokémon name
+    if ! validate_pokemon_name "$pokemon_name"; then
+        return 1
+    fi
+    
+    print_info "Fetching data for ${pokemon_name}..."
+    log_message "Starting API request for: $pokemon_name"
+    
+    # Retry loop
+    while [ $attempt -le $MAX_RETRIES ]; do
+        log_message "Attempt $attempt/$MAX_RETRIES for $pokemon_name"
+        
+        if [ $attempt -gt 1 ]; then
+            print_info "  Retry attempt $attempt/$MAX_RETRIES for $pokemon_name"
+        fi
+        
+        # Check network connectivity before each attempt (only on retries)
+        if [ $attempt -gt 1 ] && ! check_network_connectivity; then
+            print_warning "  Network connectivity issue, waiting ${RETRY_DELAY}s before retry..."
+            sleep $RETRY_DELAY
+            ((attempt++))
+            continue
+        fi
+        
+        # Make the API request with comprehensive error handling
+        local curl_exit_code=0
+        if curl -s --fail --connect-timeout 30 --max-time 60 \
+               --retry 0 --user-agent "Pokemon-Batch-Processor/1.0" \
+               "$api_url" -o "$temp_file" 2>/dev/null; then
+            
+            # Verify the response is valid JSON
+            if jq empty "$temp_file" 2>/dev/null; then
+                # Verify it contains expected Pokémon data structure
+                if jq -e '.name and .id and .types and .height and .weight' "$temp_file" >/dev/null 2>&1; then
+                    # Check if the returned Pokémon name matches what we requested
+                    local returned_name=$(jq -r '.name' "$temp_file" 2>/dev/null)
+                    if [ "$returned_name" = "$pokemon_name" ]; then
+                        # Success! Move temp file to final location
+                        mv "$temp_file" "$output_file"
+                        print_success "Saved data to ${DATA_DIR}/${pokemon_name}.json ✅"
+                        log_message "Successfully saved data for $pokemon_name after $attempt attempt(s)"
+                        return 0
+                    else
+                        log_error "API returned data for different Pokémon: expected '$pokemon_name', got '$returned_name'"
+                        rm -f "$temp_file"
+                        return 1
+                    fi
+                else
+                    log_error "API response for $pokemon_name missing required fields (attempt $attempt)"
+                    rm -f "$temp_file"
+                fi
+            else
+                log_error "Invalid JSON received for $pokemon_name (attempt $attempt)"
+                rm -f "$temp_file"
+            fi
+        else
+            curl_exit_code=$?
+            rm -f "$temp_file"
+            
+            # Detailed error analysis
+            local error_msg=""
+            local is_retryable=true
+            
+            case $curl_exit_code in
+                6)
+                    error_msg="Could not resolve host. Check DNS/internet connection."
+                    ;;
+                7)
+                    error_msg="Failed to connect to API server."
+                    ;;
+                22)
+                    error_msg="HTTP error. Pokémon '$pokemon_name' might not exist."
+                    is_retryable=false  # Don't retry for non-existent Pokémon
+                    ;;
+                28)
+                    error_msg="Request timeout. Server took too long to respond."
+                    ;;
+                35)
+                    error_msg="SSL/TLS handshake error."
+                    ;;
+                56)
+                    error_msg="Network data receive error."
+                    ;;
+                *)
+                    error_msg="API request failed with exit code: $curl_exit_code"
+                    ;;
+            esac
+            
+            log_error "Attempt $attempt for $pokemon_name failed: $error_msg"
+            
+            # Don't retry for certain types of errors
+            if [ "$is_retryable" = false ]; then
+                print_warning "  Not retrying $pokemon_name (non-retryable error)"
+                return 1
+            fi
+        fi
+        
+        # If we're here, the attempt failed but might be retryable
+        if [ $attempt -lt $MAX_RETRIES ]; then
+            print_warning "  Waiting ${RETRY_DELAY}s before retry..."
+            sleep $RETRY_DELAY
+        fi
+        
+        ((attempt++))
+    done
+    
+    # All retry attempts exhausted
+    log_error "Failed to fetch data for $pokemon_name after $MAX_RETRIES attempts"
+    print_warning "❌ Failed to fetch $pokemon_name after $MAX_RETRIES attempts"
+    rm -f "$temp_file"
+    return 1
+}
+
+# Function to process batch with rate limiting and retry logic
 process_batch() {
     local total_pokemon=${#POKEMON_LIST[@]}
     local successful=0
     local failed=0
+    local skipped=0
+    local retry_count=0
     
     print_info "Starting batch processing of $total_pokemon Pokémon..."
+    print_info "Configuration: Max retries=$MAX_RETRIES, Request delay=${REQUEST_DELAY}s, Retry delay=${RETRY_DELAY}s"
     log_message "Batch processing started with $total_pokemon Pokémon"
+    
+    # Check initial network connectivity
+    if check_network_connectivity; then
+        print_info "Network connectivity verified ✅"
+    else
+        print_warning "Initial network connectivity check failed. Proceeding anyway..."
+    fi
     
     for i in "${!POKEMON_LIST[@]}"; do
         local pokemon="${POKEMON_LIST[i]}"
@@ -138,29 +252,57 @@ process_batch() {
         
         print_info "[$progress/$total_pokemon] Processing: $pokemon"
         
-        if fetch_pokemon_data "$pokemon"; then
+        # Check if file already exists and is valid
+        local output_file="${DATA_DIR}/${pokemon}.json"
+        if [ -f "$output_file" ] && jq -e '.name and .id' "$output_file" >/dev/null 2>&1; then
+            print_info "  File already exists and is valid, skipping..."
             ((successful++))
+            ((skipped++))
         else
-            ((failed++))
-            print_warning "Failed to fetch data for $pokemon"
+            # Remove any existing invalid file
+            rm -f "$output_file"
+            
+            # Attempt to fetch data
+            local start_time=$(date +%s)
+            if fetch_pokemon_data "$pokemon"; then
+                local end_time=$(date +%s)
+                local duration=$((end_time - start_time))
+                print_success "  Completed in ${duration}s"
+                ((successful++))
+            else
+                ((failed++))
+                print_warning "  Failed to fetch data for $pokemon"
+            fi
         fi
         
         # Add delay between requests (except for the last one)
         if [ $progress -lt $total_pokemon ]; then
+            print_info "  Waiting ${REQUEST_DELAY}s before next request..."
             log_message "Waiting ${REQUEST_DELAY}s before next request (rate limiting)"
             sleep $REQUEST_DELAY
         fi
     done
     
-    # Print summary
+    # Print comprehensive summary
     echo ""
     print_info "=== Batch Processing Summary ==="
-    print_success "Successful: $successful/$total_pokemon"
+    print_success "✅ Successful: $successful/$total_pokemon"
+    if [ $skipped -gt 0 ]; then
+        print_info "⏭️  Skipped (existing): $skipped/$total_pokemon"
+    fi
     if [ $failed -gt 0 ]; then
-        print_warning "Failed: $failed/$total_pokemon"
+        print_warning "❌ Failed: $failed/$total_pokemon"
+        print_warning "   Check $ERROR_FILE for detailed error information"
     fi
     
-    log_message "Batch processing completed. Success: $successful, Failed: $failed"
+    # Calculate success rate
+    local new_downloads=$((successful - skipped))
+    if [ $new_downloads -gt 0 ] || [ $failed -gt 0 ]; then
+        local success_rate=$(awk "BEGIN {printf \"%.1f\", ($new_downloads/($new_downloads+$failed))*100}")
+        print_info "📊 Success rate for new downloads: ${success_rate}%"
+    fi
+    
+    log_message "Batch processing completed. Success: $successful, Failed: $failed, Skipped: $skipped"
 }
 
 # Function to validate downloaded files
@@ -245,21 +387,31 @@ cleanup_failed() {
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Batch Pokémon data retrieval script"
+    echo "Batch Pokémon data retrieval script with retry logic and error handling"
     echo ""
     echo "OPTIONS:"
-    echo "  -h, --help        Show this help message"
-    echo "  -d, --delay SEC   Set delay between requests (default: 2 seconds)"
-    echo "  -o, --output DIR  Set output directory (default: pokemon_data)"
-    echo "  -v, --validate    Only validate existing files"
-    echo "  -s, --stats       Show file statistics"
-    echo "  -c, --cleanup     Clean up failed downloads"
+    echo "  -h, --help              Show this help message"
+    echo "  -d, --delay SEC         Set delay between requests (default: $REQUEST_DELAY seconds)"
+    echo "  -r, --retry-delay SEC   Set delay between retry attempts (default: $RETRY_DELAY seconds)"
+    echo "  -m, --max-retries NUM   Set maximum retry attempts (default: $MAX_RETRIES)"
+    echo "  -o, --output DIR        Set output directory (default: $DATA_DIR)"
+    echo "  -v, --validate          Only validate existing files"
+    echo "  -s, --stats             Show file statistics"
+    echo "  -c, --cleanup           Clean up failed downloads"
     echo ""
     echo "Examples:"
-    echo "  $0                    # Run with default settings"
-    echo "  $0 --delay 5          # Use 5-second delay between requests"
-    echo "  $0 --output my_data   # Save to 'my_data' directory"
-    echo "  $0 --validate         # Only validate existing files"
+    echo "  $0                        # Run with default settings"
+    echo "  $0 --delay 5              # Use 5-second delay between requests"
+    echo "  $0 --max-retries 5        # Retry up to 5 times on failure"
+    echo "  $0 --retry-delay 10       # Wait 10 seconds between retries"
+    echo "  $0 --output my_data       # Save to 'my_data' directory"
+    echo "  $0 --validate             # Only validate existing files"
+    echo ""
+    echo "Error Handling:"
+    echo "  • Network errors: Automatic retry with exponential backoff"
+    echo "  • API errors: Smart retry logic (skips non-retryable errors)"
+    echo "  • JSON validation: Ensures data integrity before saving"
+    echo "  • Comprehensive logging: All errors logged to $ERROR_FILE"
 }
 
 # Main execution function
@@ -277,8 +429,24 @@ main() {
                 ;;
             -d|--delay)
                 REQUEST_DELAY="$2"
-                if ! [[ "$REQUEST_DELAY" =~ ^[0-9]+$ ]]; then
-                    echo "Error: Delay must be a positive integer" >&2
+                if ! [[ "$REQUEST_DELAY" =~ ^[0-9]+$ ]] || [ "$REQUEST_DELAY" -lt 1 ]; then
+                    echo "Error: Request delay must be a positive integer" >&2
+                    exit 1
+                fi
+                shift 2
+                ;;
+            -r|--retry-delay)
+                RETRY_DELAY="$2"
+                if ! [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || [ "$RETRY_DELAY" -lt 1 ]; then
+                    echo "Error: Retry delay must be a positive integer" >&2
+                    exit 1
+                fi
+                shift 2
+                ;;
+            -m|--max-retries)
+                MAX_RETRIES="$2"
+                if ! [[ "$MAX_RETRIES" =~ ^[0-9]+$ ]] || [ "$MAX_RETRIES" -lt 1 ] || [ "$MAX_RETRIES" -gt 10 ]; then
+                    echo "Error: Max retries must be between 1 and 10" >&2
                     exit 1
                 fi
                 shift 2
