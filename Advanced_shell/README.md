@@ -14,6 +14,27 @@ A robust shell script that demonstrates the following advanced concepts:
 
 Advanced text manipulation scripts that extract and format Pokémon data using `jq`, `awk`, and `sed`:
 
+### 🔄 **Batch Processing Scripts** (`batchProcessing-0x02` & `fetch_multiple_pokemon`)
+
+Automated batch retrieval scripts that fetch data for multiple Pokémon with rate limiting and error handling:
+
+#### **Batch Processing Features:**
+
+- **Multiple Pokémon Retrieval**: Fetches data for a predefined list of Pokémon
+- **Rate Limiting**: Configurable delays between API requests to respect server limits
+- **Directory Management**: Automatically creates organized data directories
+- **Progress Tracking**: Real-time progress indicators during batch operations
+- **Error Handling**: Comprehensive error logging and recovery mechanisms
+- **File Validation**: JSON validation and completeness checks
+- **Statistics Display**: File size, Pokémon stats, and processing summaries
+
+#### **Process Management Techniques:**
+
+1. **Background Processing**: Optional background execution for large batches
+2. **Signal Handling**: Graceful shutdown and cleanup on interruption
+3. **Resource Management**: Memory-efficient processing of large datasets
+4. **Concurrent Processing**: Parallel request handling (where appropriate)
+
 #### **Data Extraction Features:**
 
 - **Advanced Text Processing**: Uses `jq`, `awk`, and `sed` for sophisticated text manipulation
@@ -88,10 +109,20 @@ Advanced_shell/
 ├── apiAutomation-0x00                 # Main API automation script
 ├── data_extraction_automation-0x01    # Comprehensive data extraction script
 ├── parse_pikachu                      # Simple Pokémon data parser
+├── batchProcessing-0x02              # Comprehensive batch processing script
+├── fetch_multiple_pokemon             # Simple batch fetching script
 ├── README.md                          # This documentation
-├── data.json                          # Generated: Pokémon data (after API run)
+├── data.json                          # Generated: Single Pokémon data (Pikachu)
+├── pokemon_data/                      # Generated: Directory for batch data
+│   ├── bulbasaur.json                # Individual Pokémon data files
+│   ├── ivysaur.json
+│   ├── venusaur.json
+│   ├── charmander.json
+│   └── charmeleon.json
 ├── errors.txt                         # Generated: API error logs
-└── extraction_errors.txt              # Generated: Extraction error logs
+├── extraction_errors.txt              # Generated: Extraction error logs
+├── batch_errors.txt                   # Generated: Batch processing error logs
+└── batch_processing.log               # Generated: Batch processing activity log
 ```
 
 ## Prerequisites
@@ -178,6 +209,44 @@ chmod +x parse_pikachu
 ./data_extraction_automation-0x01 --file custom_pokemon.json
 ```
 
+### **Step 3: Batch Processing**
+
+#### **Make the batch processing scripts executable:**
+
+```bash
+chmod +x batchProcessing-0x02
+chmod +x fetch_multiple_pokemon
+```
+
+#### **Run the simple batch fetcher (matches sample output):**
+
+```bash
+./fetch_multiple_pokemon
+# Fetches bulbasaur, ivysaur, venusaur, charmander, charmeleon
+```
+
+#### **Run the comprehensive batch processor:**
+
+```bash
+# Full processing with validation and statistics
+./batchProcessing-0x02
+
+# Custom delay between requests
+./batchProcessing-0x02 --delay 5
+
+# Custom output directory
+./batchProcessing-0x02 --output my_pokemon_data
+
+# Validate existing files only
+./batchProcessing-0x02 --validate
+
+# Show file statistics
+./batchProcessing-0x02 --stats
+
+# Clean up failed downloads
+./batchProcessing-0x02 --cleanup
+```
+
 ## Expected Output
 
 ### **API Script Execution:**
@@ -199,6 +268,100 @@ Data file: data.json
 ==============================
 [2025-06-19 10:30:16] Script completed successfully
 [2025-06-19 10:30:16] === API Request Automation Completed ===
+```
+
+### **Batch Processing Outputs:**
+
+#### **Simple Batch Fetcher (`fetch_multiple_pokemon`):**
+
+```bash
+$ ./fetch_multiple_pokemon
+Fetching data for bulbasaur...
+Saved data to pokemon_data/bulbasaur.json ✅
+Fetching data for ivysaur...
+Saved data to pokemon_data/ivysaur.json ✅
+Fetching data for venusaur...
+Saved data to pokemon_data/venusaur.json ✅
+Fetching data for charmander...
+Saved data to pokemon_data/charmander.json ✅
+Fetching data for charmeleon...
+Saved data to pokemon_data/charmeleon.json ✅
+```
+
+#### **Comprehensive Batch Processor with Statistics:**
+
+```bash
+$ ./batchProcessing-0x02
+Starting batch processing of 5 Pokémon...
+[1/5] Processing: bulbasaur
+Fetching data for bulbasaur...
+Saved data to pokemon_data/bulbasaur.json ✅
+[2/5] Processing: ivysaur
+Fetching data for ivysaur...
+Saved data to pokemon_data/ivysaur.json ✅
+[3/5] Processing: venusaur
+Fetching data for venusaur...
+Saved data to pokemon_data/venusaur.json ✅
+[4/5] Processing: charmander
+Fetching data for charmander...
+Saved data to pokemon_data/charmander.json ✅
+[5/5] Processing: charmeleon
+Fetching data for charmeleon...
+Saved data to pokemon_data/charmeleon.json ✅
+
+=== Batch Processing Summary ===
+Successful: 5/5
+
+Validating downloaded files...
+✅ bulbasaur.json - Valid
+✅ ivysaur.json - Valid
+✅ venusaur.json - Valid
+✅ charmander.json - Valid
+✅ charmeleon.json - Valid
+All files validated successfully!
+
+=== File Statistics ===
+bulbasaur       | ID: 1   | Size: 252KiB   | H: 7   | W: 69
+ivysaur         | ID: 2   | Size: 222KiB   | H: 10  | W: 130
+venusaur        | ID: 3   | Size: 262KiB   | H: 20  | W: 1000
+charmander      | ID: 4   | Size: 279KiB   | H: 6   | W: 85
+charmeleon      | ID: 5   | Size: 244KiB   | H: 11  | W: 190
+```
+
+#### **Validation of Downloaded Files:**
+
+```bash
+$ jq . < pokemon_data/bulbasaur.json | head -n 30
+{
+  "abilities": [
+    {
+      "ability": {
+        "name": "overgrow",
+        "url": "https://pokeapi.co/api/v2/ability/65/"
+      },
+      "is_hidden": false,
+      "slot": 1
+    },
+    {
+      "ability": {
+        "name": "chlorophyll",
+        "url": "https://pokeapi.co/api/v2/ability/34/"
+      },
+      "is_hidden": true,
+      "slot": 3
+    }
+  ],
+  "base_experience": 64,
+  "cries": {
+    "latest": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg",
+    "legacy": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/1.ogg"
+  },
+  "forms": [
+    {
+      "name": "bulbasaur",
+      "url": "https://pokeapi.co/api/v2/pokemon-form/1/"
+    }
+  ],
 ```
 
 ### **Data Extraction Outputs:**
