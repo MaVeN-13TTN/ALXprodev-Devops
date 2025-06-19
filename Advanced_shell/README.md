@@ -214,7 +214,7 @@ Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
 
 ```bash
 $ ./data_extraction_automation-0x01
-Pikachu is of type Electric, weighs 6.0kg, and is 0.4m tall.
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
 ```
 
 #### **Comprehensive Script (Verbose Mode):**
@@ -227,11 +227,11 @@ Data file: data.json
 Extracting components...
 Name: Pikachu
 Type(s): Electric
-Weight: 6.0kg
+Weight: 6kg
 Height: 0.4m
 
 Formatted output:
-Pikachu is of type Electric, weighs 6.0kg, and is 0.4m tall.
+Pikachu is of type Electric, weighs 6kg, and is 0.4m tall.
 
 === Extraction Complete ===
 ```

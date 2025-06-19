@@ -62,25 +62,25 @@ extract_types() {
 extract_weight() {
     # Extract weight (in hectograms) and convert to kg using awk
     jq -r '.weight' "$DATA_FILE" | \
-    awk '{ printf "%.1fkg", $1/10 }'
+    awk '{ printf "%.0f", $1/10 }'
 }
 
 # Function to extract height using jq and awk for unit conversion
 extract_height() {
     # Extract height (in decimeters) and convert to meters using awk
     jq -r '.height' "$DATA_FILE" | \
-    awk '{ printf "%.1fm", $1/10 }'
+    awk '{ printf "%.1f", $1/10 }'
 }
 
 # Function to format the final output using sed for text manipulation
 format_output() {
     local name="$1"
-    local types="$2"
-    local weight="$3"
-    local height="$4"
+    local type="$2"
+    local formatted_weight="$3"
+    local formatted_height="$4"
     
-    # Create the base sentence
-    local output="$name is of type $types, weighs $weight, and is $height tall."
+    # Create the base sentence with the expected template format
+    local output="$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
     
     # Use sed to ensure proper formatting and handle any edge cases
     echo "$output" | sed 's/  */ /g; s/^ *//; s/ *$//'
@@ -165,10 +165,10 @@ verbose_extract() {
     echo "Type(s): $types"
     
     local weight=$(extract_weight)
-    echo "Weight: $weight"
+    echo "Weight: ${weight}kg"
     
     local height=$(extract_height)
-    echo "Height: $height"
+    echo "Height: ${height}m"
     
     echo ""
     echo "Formatted output:"
